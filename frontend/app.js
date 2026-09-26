@@ -145,9 +145,10 @@ async function startUpload() {
 
     const filesToUpload = uploadedFiles.filter(f => f.status === 'جاهز' || f.status === 'فشل');
     const firstFileType = filesToUpload[0]?.file.type || '';
-    const mediatype = firstFileType.startsWith('audio/') ? 'audio'
+    const firstFileName = filesToUpload[0]?.file.name.toLowerCase() || '';
+    const mediatype = firstFileType.startsWith('audio/') || /\.(aac|flac|m4a|mp3|oga|ogg|opus|wav|wma)$/.test(firstFileName) ? 'audio'
         : firstFileType.startsWith('video/') ? 'movies'
-        : firstFileType.startsWith('image/') ? 'image'
+        : firstFileType.startsWith('image/') || /\.(avif|bmp|gif|jpe?g|png|svg|webp)$/.test(firstFileName) ? 'image'
         : 'data';
 
     try {

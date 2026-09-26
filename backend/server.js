@@ -32,10 +32,22 @@ app.post('/api/create-item', async (req, res) => {
       return res.status(400).json({ error: 'Identifier is required' });
     }
 
+    const existingItem = await getItemMetadata(identifier).catch(() => null);
+    if (existingItem?.metadata) {
+      return res.status(200).json({ success: true, identifier, alreadyExists: true });
+    }
+
     await createIaItem(identifier, title, description, mediatype || 'data');
     res.status(201).json({ success: true, identifier });
 
   } catch (error) {
+    // Internet Archive can finish creating an item between our lookup and PUT.
+    if (error.response?.status === 403) {
+      const existingItem = await getItemMetadata(req.body?.identifier).catch(() => null);
+      if (existingItem?.metadata) {
+        return res.status(200).json({ success: true, identifier: req.body.identifier, alreadyExists: true });
+      }
+    }
     const responseBody = error.response?.data;
     console.error('Create Item Error:', JSON.stringify({
       status: error.response?.status,

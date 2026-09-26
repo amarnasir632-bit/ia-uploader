@@ -394,3 +394,12 @@ input[type="text"]:focus, textarea:focus {
         flex-direction: column;
     }
 }
+
+/* The CMS embeds this uploader in its content editor. */
+.embedded-uploader .app-header,
+.embedded-uploader .section-info {
+    display: none;
+}
+.embedded-uploader .container {
+    padding-block-start: 1rem;
+}

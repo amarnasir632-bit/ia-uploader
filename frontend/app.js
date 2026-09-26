@@ -21,6 +21,18 @@ const resultsSection = document.getElementById('results-section');
 const linksListContainer = document.getElementById('links-list');
 const copyAllBtn = document.getElementById('copy-all-btn');
 const toastEl = document.getElementById('toast');
+const isEmbedded = new URLSearchParams(window.location.search).get('embed') === '1';
+
+if (isEmbedded) document.body.classList.add('embedded-uploader');
+
+window.addEventListener('message', (event) => {
+    if (event.origin !== 'https://dsacms-frontend.vercel.app' && event.origin !== 'https://mohamedalahadi.com') return;
+    if (event.data?.type !== 'dsacms:archive-context') return;
+    const context = event.data;
+    if (context.identifier) identifierInput.value = context.identifier;
+    if (context.title) titleInput.value = context.title;
+    if (context.description) descInput.value = context.description;
+});
 
 // === الأحداث (Event Listeners) ===
 
@@ -264,14 +276,40 @@ function renderResults() {
     successfulFiles.forEach(item => {
         const linkBlock = document.createElement('div');
         linkBlock.className = 'link-item';
-        
-        linkBlock.innerHTML = `
-            <div class="link-item-header">${item.file.name}</div>
-            <div class="link-input-group">
-                <input type="text" value="${item.url}" readonly>
-                <button class="btn btn-primary" onclick="copyLink('${item.url}')">نسخ الرابط</button>
-            </div>
-        `;
+        const heading = document.createElement('div');
+        heading.className = 'link-item-header';
+        heading.textContent = item.file.name;
+        const group = document.createElement('div');
+        group.className = 'link-input-group';
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.value = item.url;
+        input.readOnly = true;
+        const copyButton = document.createElement('button');
+        copyButton.className = 'btn btn-primary';
+        copyButton.type = 'button';
+        copyButton.textContent = 'نسخ الرابط';
+        copyButton.addEventListener('click', () => copyLink(item.url));
+        group.append(input, copyButton);
+        if (isEmbedded) {
+            const useButton = document.createElement('button');
+            useButton.className = 'btn btn-outline-primary use-link-btn';
+            useButton.type = 'button';
+            useButton.textContent = 'استخدام الرابط في الموقع';
+            useButton.addEventListener('click', () => {
+                let parentOrigin;
+                try { parentOrigin = new URL(document.referrer).origin; } catch (_) { return; }
+                if (parentOrigin !== 'https://dsacms-frontend.vercel.app' && parentOrigin !== 'https://mohamedalahadi.com') return;
+                window.parent.postMessage({
+                    type: 'dsacms:archive-file-selected',
+                    url: item.url,
+                    filename: item.file.name,
+                    contentType: item.file.type || ''
+                }, parentOrigin);
+            });
+            group.appendChild(useButton);
+        }
+        linkBlock.append(heading, group);
         linksListContainer.appendChild(linkBlock);
     });
 }

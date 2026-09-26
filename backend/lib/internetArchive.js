@@ -1,6 +1,4 @@
 const axios = require('axios');
-const crypto = require('crypto');
-
 const IA_S3_ENDPOINT = 'https://s3.us.archive.org';
 
 /**
@@ -30,34 +28,25 @@ async function createIaItem(identifier, title, description, mediatype = 'data') 
   return true;
 }
 
-/**
- * دالة لتوليد رابط رفع مباشر (Pre-signed URL)
- */
-async function getPresignedUploadUrl(identifier, filename, contentType) {
-  const accessKey = process.env.IA_ACCESS_KEY;
-  const secretKey = process.env.IA_SECRET_KEY;
-  if (!accessKey || !secretKey) {
+/** Stream a private Blob object to Internet Archive using IAS3 LOW auth. */
+async function uploadBlobToIa(identifier, filename, contentType, stream, size) {
+  if (!process.env.IA_ACCESS_KEY || !process.env.IA_SECRET_KEY) {
     throw new Error('Internet Archive S3 credentials are not configured');
   }
 
-  // IAS3 uses Signature V2 query authentication; SigV4 URLs are rejected as
-  // AWS access keys because Internet Archive credentials are not AWS IAM keys.
-  const expires = Math.floor(Date.now() / 1000) + 3600;
-  const encodedIdentifier = encodeURIComponent(identifier);
-  const encodedFilename = encodeURIComponent(filename).replace(/%2F/gi, '/');
-  const canonicalResource = `/${encodedIdentifier}/${encodedFilename}`;
-  const stringToSign = `PUT\n\n${contentType}\n${expires}\n${canonicalResource}`;
-  const signature = crypto
-    .createHmac('sha1', secretKey)
-    .update(stringToSign, 'utf8')
-    .digest('base64');
-  const query = new URLSearchParams({
-    AWSAccessKeyId: accessKey,
-    Expires: String(expires),
-    Signature: signature
+  const safeFilename = encodeURIComponent(filename);
+  const url = `${IA_S3_ENDPOINT}/${encodeURIComponent(identifier)}/${safeFilename}`;
+  await axios.put(url, stream, {
+    headers: {
+      Authorization: `LOW ${process.env.IA_ACCESS_KEY}:${process.env.IA_SECRET_KEY}`,
+      'Content-Type': contentType || 'application/octet-stream',
+      'Content-Length': String(size),
+    },
+    maxBodyLength: Infinity,
+    maxContentLength: Infinity,
+    timeout: 10 * 60 * 1000,
   });
-
-  return `${IA_S3_ENDPOINT}${canonicalResource}?${query.toString()}`;
+  return `https://archive.org/download/${encodeURIComponent(identifier)}/${safeFilename}`;
 }
 
 /**
@@ -70,6 +59,6 @@ async function getItemMetadata(identifier) {
 
 module.exports = {
   createIaItem,
-  getPresignedUploadUrl,
+  uploadBlobToIa,
   getItemMetadata
 };

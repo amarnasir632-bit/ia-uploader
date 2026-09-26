@@ -5,11 +5,11 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "node server.js"
+    "dev": "node server.js",
+    "build:browser": "cd ../frontend && NODE_PATH=../backend/node_modules ../backend/node_modules/.bin/esbuild blob-client-entry.js --bundle --minify --format=iife --global-name=IAUploaderBlobModule --outfile=blob-client.js"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.400.0",
-    "@aws-sdk/s3-request-presigner": "^3.400.0",
+    "@vercel/blob": "^2.8.0",
     "axios": "^1.5.0",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
@@ -17,5 +17,8 @@
   },
   "engines": {
     "node": ">=18.x"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2"
   }
 }

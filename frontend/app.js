@@ -187,55 +187,53 @@ async function startUpload() {
     }
 }
 
-function uploadFile(item) {
-    return new Promise((resolve) => {
-        // تحديث الحالة
-        item.status = 'جاري الرفع';
-        updateProgress(item.id, 0, item.status);
+async function uploadFile(item) {
+    item.status = 'جاري الرفع';
+    updateProgress(item.id, 0, item.status);
 
-        const identifier = identifierInput.value.trim();
-        const contentType = item.file.type || 'application/octet-stream';
+    const identifier = identifierInput.value.trim();
+    const lowerName = item.file.name.toLowerCase();
+    const contentType = item.file.type || (lowerName.endsWith('.m4a') ? 'audio/mp4' : 'application/octet-stream');
+    const uploadId = crypto.randomUUID();
+    const pathname = `ia-uploads/${identifier}/${uploadId}/${item.file.name}`;
 
-        fetch(`${API_BASE_URL}/api/upload`, {
+    try {
+        const { upload } = window.IAUploaderBlob || {};
+        if (!upload) throw new Error('تعذر تحميل مكوّن الرفع. حدّث الصفحة وحاول مرة أخرى.');
+
+        const blob = await upload(pathname, item.file, {
+            access: 'private',
+            contentType,
+            multipart: true,
+            handleUploadUrl: `${API_BASE_URL}/api/blob-upload-token`,
+            clientPayload: JSON.stringify({ identifier, filename: item.file.name, contentType, uploadId }),
+            onUploadProgress: (event) => {
+                const percent = Math.round(event.percentage * 0.75);
+                updateProgress(item.id, percent, 'جاري الرفع إلى التخزين المؤقت');
+            }
+        });
+
+        updateProgress(item.id, 75, 'جاري النقل إلى Internet Archive');
+        const response = await fetch(`${API_BASE_URL}/api/complete-upload`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ identifier, filename: item.file.name, contentType })
-        }).then(async response => {
-            const data = await response.json().catch(() => ({}));
-            if (!response.ok || !data.uploadUrl) {
-                throw new Error(data.error || `تعذر تجهيز رفع الملف (${response.status})`);
-            }
-            return data;
-        }).then(data => {
-            const xhr = new XMLHttpRequest();
-            xhr.open('PUT', data.uploadUrl, true);
-            xhr.setRequestHeader('Content-Type', contentType);
-            xhr.upload.onprogress = (e) => {
-                if (e.lengthComputable) {
-                    updateProgress(item.id, Math.round((e.loaded / e.total) * 100), 'جاري الرفع');
-                }
-            };
-            xhr.onload = () => {
-                if (xhr.status >= 200 && xhr.status < 300) {
-                    showResult(item.id, data.files?.[0]?.url || `https://archive.org/download/${encodeURIComponent(identifier)}/${encodeURIComponent(item.file.name)}`);
-                } else {
-                    updateProgress(item.id, 0, 'فشل');
-                    showToast(`فشل رفع ${item.file.name} (HTTP ${xhr.status})`);
-                }
-                resolve();
-            };
-            xhr.onerror = () => {
-                updateProgress(item.id, 0, 'فشل');
-                showToast(`تعذر الاتصال بخادم Internet Archive لرفع ${item.file.name}. قد يكون السبب إعدادات CORS.`);
-                resolve();
-            };
-            xhr.send(item.file);
-        }).catch(error => {
-            updateProgress(item.id, 0, 'فشل');
-            showToast(error.message || `فشل تجهيز رفع ${item.file.name}`);
-            resolve();
+            body: JSON.stringify({
+                blobUrl: blob.url,
+                pathname: blob.pathname,
+                identifier,
+                filename: item.file.name,
+                contentType
+            })
         });
-    });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok || !result.success) {
+            throw new Error(result.error || `فشل نقل الملف إلى Internet Archive (${response.status})`);
+        }
+        showResult(item.id, result.files?.[0]?.url || `https://archive.org/download/${encodeURIComponent(identifier)}/${encodeURIComponent(item.file.name)}`);
+    } catch (error) {
+        updateProgress(item.id, 0, 'فشل');
+        showToast(error.message || `فشل رفع ${item.file.name}`);
+    }
 }
 
 function updateProgress(id, percent, status) {

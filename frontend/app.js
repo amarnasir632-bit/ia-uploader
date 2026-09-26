@@ -1,5 +1,7 @@
 // الإعدادات العامة (مفصولة عن الكود المباشر)
-const API_BASE_URL = "http://localhost:3000"; // اتركها فارغة للعمل على نفس النطاق (مثل Vercel)
+const API_BASE_URL = "https://ia-uploader.vercel.app";
+
+// اتركها فارغة للعمل على نفس النطاق (مثل Vercel)
 
 // متغيرات الحالة (State)
 let uploadedFiles = []; // مصفوفة لتخزين الكائنات: { id, file, status, progress, url }

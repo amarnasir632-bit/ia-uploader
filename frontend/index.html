@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Internet Archive Uploader</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header class="app-header">
+        <h1>Internet Archive Uploader</h1>
+        <p>ارفع ملفاتك إلى Internet Archive واحصل على روابط التحميل المباشر.</p>
+    </header>
+
+    <main class="container">
+        <!-- القسم الأول: معلومات العنصر -->
+        <section class="card section-info">
+            <h2>معلومات العنصر</h2>
+            <div class="form-group">
+                <label for="identifier">
+                    المعرف (Identifier) <span class="required">*</span>
+                    <span class="tooltip" aria-label="المعرف الفريد للعنصر في Internet Archive، يجب أن يكون باللغة الإنجليزية وبدون مسافات.">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path></svg>
+                    </span>
+                </label>
+                <input type="text" id="identifier" placeholder="مثال: my-unique-audio-collection-2024" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="title">العنوان</label>
+                <input type="text" id="title" placeholder="عنوان العنصر (اختياري)">
+            </div>
+
+            <div class="form-group">
+                <label for="description">الوصف</label>
+                <textarea id="description" rows="3" placeholder="وصف محتوى الملفات (اختياري)"></textarea>
+            </div>
+        </section>
+
+        <!-- القسم الثاني: رفع الملفات -->
+        <section class="card section-upload">
+            <h2>رفع الملفات</h2>
+            <div id="drop-zone" class="drop-zone" tabindex="0" role="button" aria-label="منطقة سحب وإفلات الملفات">
+                <div class="drop-zone-content">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                    <p class="drop-text">اسحب الملفات هنا</p>
+                    <p class="drop-subtext">أو اختر الملفات من جهازك</p>
+                    <input type="file" id="file-input" multiple hidden>
+                    <button class="btn btn-outline" id="browse-btn">اختيار الملفات</button>
+                </div>
+            </div>
+
+            <!-- قائمة الملفات -->
+            <div id="files-list" class="files-list"></div>
+
+            <!-- أزرار التحكم -->
+            <div class="actions-group">
+                <button class="btn btn-primary" id="upload-btn" disabled>رفع الملفات</button>
+                <button class="btn btn-secondary" id="clear-btn" disabled>مسح القائمة</button>
+            </div>
+        </section>
+
+        <!-- قسم النتائج -->
+        <section class="card section-results hidden" id="results-section">
+            <div class="results-header">
+                <h2>الروابط المباشرة</h2>
+                <button class="btn btn-outline-primary" id="copy-all-btn">نسخ جميع الروابط</button>
+            </div>
+            <div id="links-list" class="links-list"></div>
+        </section>
+    </main>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast" role="alert" aria-live="polite"></div>
+
+    <script src="app.js"></script>
+</body>
+</html>

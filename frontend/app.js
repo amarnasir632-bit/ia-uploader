@@ -193,7 +193,7 @@ async function uploadFile(item) {
 
     const identifier = identifierInput.value.trim();
     const lowerName = item.file.name.toLowerCase();
-    const contentType = item.file.type || (lowerName.endsWith('.m4a') ? 'audio/mp4' : 'application/octet-stream');
+    const contentType = lowerName.endsWith('.m4a') ? 'audio/mp4' : (item.file.type || 'application/octet-stream');
     const uploadId = crypto.randomUUID();
     const pathname = `ia-uploads/${identifier}/${uploadId}/${item.file.name}`;
 

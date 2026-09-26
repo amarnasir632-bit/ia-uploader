@@ -60,7 +60,6 @@ app.post('/api/blob-upload-token', async (req, res) => {
           throw new Error('Upload path does not match its item identifier');
         }
         return {
-          allowedContentTypes: ['*/*'],
           maximumSizeInBytes: 5 * 1024 * 1024 * 1024,
           addRandomSuffix: false,
           allowOverwrite: false,

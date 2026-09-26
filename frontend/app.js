@@ -15,6 +15,7 @@ const filesListContainer = document.getElementById('files-list');
 const uploadBtn = document.getElementById('upload-btn');
 const clearBtn = document.getElementById('clear-btn');
 const identifierInput = document.getElementById('identifier');
+const generateIdentifierBtn = document.getElementById('generate-identifier');
 const titleInput = document.getElementById('title');
 const descInput = document.getElementById('description');
 const resultsSection = document.getElementById('results-section');
@@ -24,6 +25,15 @@ const toastEl = document.getElementById('toast');
 const isEmbedded = new URLSearchParams(window.location.search).get('embed') === '1';
 
 if (isEmbedded) document.body.classList.add('embedded-uploader');
+
+function generateArchiveIdentifier() {
+    return `ia-${Date.now().toString(36)}-${crypto.randomUUID().replaceAll('-', '').slice(0, 10)}`;
+}
+
+if (!identifierInput.value.trim()) identifierInput.value = generateArchiveIdentifier();
+generateIdentifierBtn.addEventListener('click', () => {
+    identifierInput.value = generateArchiveIdentifier();
+});
 
 window.addEventListener('message', (event) => {
     if (event.origin !== 'https://dsacms-frontend.vercel.app' && event.origin !== 'https://mohamedalahadi.com') return;

@@ -403,3 +403,14 @@ input[type="text"]:focus, textarea:focus {
 .embedded-uploader .container {
     padding-block-start: 1rem;
 }
+.identifier-actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+.identifier-hint {
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+}

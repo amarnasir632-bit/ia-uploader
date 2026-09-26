@@ -23,17 +23,22 @@ app.get('/api/health', (req, res) => {
 // 2. Create Item Endpoint
 app.post('/api/create-item', async (req, res) => {
   try {
-    const { identifier, title, description } = req.body;
+    const { identifier, title, description, mediatype } = req.body;
     
     if (!identifier) {
       return res.status(400).json({ error: 'Identifier is required' });
     }
 
-    await createIaItem(identifier, title, description);
+    await createIaItem(identifier, title, description, mediatype || 'data');
     res.status(201).json({ success: true, identifier });
 
   } catch (error) {
-    console.error('Create Item Error:', error.message);
+    const responseBody = error.response?.data;
+    console.error('Create Item Error:', JSON.stringify({
+      status: error.response?.status,
+      message: error.message,
+      response: typeof responseBody === 'string' ? responseBody.slice(0, 1000) : responseBody
+    }));
     res.status(500).json({ error: 'Failed to create item on Internet Archive' });
   }
 });

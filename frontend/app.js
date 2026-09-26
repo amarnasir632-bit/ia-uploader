@@ -143,6 +143,13 @@ async function startUpload() {
     isUploading = true;
     renderFiles(); // تحديث الواجهة لتعطيل الأزرار
 
+    const filesToUpload = uploadedFiles.filter(f => f.status === 'جاهز' || f.status === 'فشل');
+    const firstFileType = filesToUpload[0]?.file.type || '';
+    const mediatype = firstFileType.startsWith('audio/') ? 'audio'
+        : firstFileType.startsWith('video/') ? 'movies'
+        : firstFileType.startsWith('image/') ? 'image'
+        : 'data';
+
     try {
         const response = await fetch(`${API_BASE_URL}/api/create-item`, {
             method: 'POST',
@@ -150,7 +157,8 @@ async function startUpload() {
             body: JSON.stringify({
                 identifier: identifierInput.value.trim(),
                 title: titleInput.value.trim(),
-                description: descInput.value.trim()
+                description: descInput.value.trim(),
+                mediatype
             })
         });
         if (!response.ok) {
@@ -165,8 +173,6 @@ async function startUpload() {
     }
 
     // فلترة الملفات الجاهزة فقط (لتجنب إعادة رفع ملفات اكتملت)
-    const filesToUpload = uploadedFiles.filter(f => f.status === 'جاهز' || f.status === 'فشل');
-
     for (const item of filesToUpload) {
         await uploadFile(item);
     }

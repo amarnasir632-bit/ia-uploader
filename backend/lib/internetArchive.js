@@ -16,14 +16,19 @@ const s3Client = new S3Client({
  * دالة لإنشاء Item جديد في Internet Archive
  * يتم إنشاؤه عبر رفع ملف Metadata صغير جداً مع تمرير الـ Headers المطلوبة
  */
-async function createIaItem(identifier, title, description) {
+async function createIaItem(identifier, title, description, mediatype = 'data') {
   const url = `https://s3.us.archive.org/${identifier}/_project_metadata.json`;
   const metadata = { created_by: "IA Uploader App", timestamp: new Date().toISOString() };
+
+  if (!process.env.IA_ACCESS_KEY || !process.env.IA_SECRET_KEY) {
+    throw new Error('Internet Archive S3 credentials are not configured');
+  }
 
   const headers = {
     'Authorization': `LOW ${process.env.IA_ACCESS_KEY}:${process.env.IA_SECRET_KEY}`,
     'Content-Type': 'application/json',
-    'x-archive-meta-mediatype': 'data',
+    'x-amz-auto-make-bucket': '1',
+    'x-archive-meta-mediatype': mediatype,
   };
 
   if (title) headers['x-archive-meta-title'] = title;

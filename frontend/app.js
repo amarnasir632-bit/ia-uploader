@@ -143,6 +143,27 @@ async function startUpload() {
     isUploading = true;
     renderFiles(); // تحديث الواجهة لتعطيل الأزرار
 
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/create-item`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                identifier: identifierInput.value.trim(),
+                title: titleInput.value.trim(),
+                description: descInput.value.trim()
+            })
+        });
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({}));
+            throw new Error(error.error || `تعذر تجهيز العنصر (${response.status})`);
+        }
+    } catch (error) {
+        isUploading = false;
+        renderFiles();
+        showToast(error.message || 'تعذر الاتصال بالخادم');
+        return;
+    }
+
     // فلترة الملفات الجاهزة فقط (لتجنب إعادة رفع ملفات اكتملت)
     const filesToUpload = uploadedFiles.filter(f => f.status === 'جاهز' || f.status === 'فشل');
 
@@ -165,46 +186,48 @@ function uploadFile(item) {
         item.status = 'جاري الرفع';
         updateProgress(item.id, 0, item.status);
 
-        const formData = new FormData();
-        formData.append('file', item.file);
-        formData.append('identifier', identifierInput.value.trim());
-        formData.append('title', titleInput.value.trim());
-        formData.append('description', descInput.value.trim());
+        const identifier = identifierInput.value.trim();
+        const contentType = item.file.type || 'application/octet-stream';
 
-        const xhr = new XMLHttpRequest();
-        
-        // نقطة النهاية للـ API (Backend يجب أن يستقبلها هنا)
-        xhr.open('POST', `${API_BASE_URL}/api/upload`, true);
-
-        // مراقبة تقدم الرفع
-        xhr.upload.onprogress = (e) => {
-            if (e.lengthComputable) {
-                const percent = Math.round((e.loaded / e.total) * 100);
-                updateProgress(item.id, percent, 'جاري الرفع');
+        fetch(`${API_BASE_URL}/api/upload`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ identifier, filename: item.file.name, contentType })
+        }).then(async response => {
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok || !data.uploadUrl) {
+                throw new Error(data.error || `تعذر تجهيز رفع الملف (${response.status})`);
             }
-        };
-
-        xhr.onload = () => {
-            if (xhr.status >= 200 && xhr.status < 300) {
-                try {
-                    const response = JSON.parse(xhr.responseText);
-                    // نتوقع أن الـ API يعيد الرابط المباشر
-                    showResult(item.id, response.url || `https://archive.org/download/${identifierInput.value.trim()}/${item.file.name}`);
-                } catch (e) {
-                    showResult(item.id, `https://archive.org/download/${identifierInput.value.trim()}/${item.file.name}`);
+            return data;
+        }).then(data => {
+            const xhr = new XMLHttpRequest();
+            xhr.open('PUT', data.uploadUrl, true);
+            xhr.setRequestHeader('Content-Type', contentType);
+            xhr.upload.onprogress = (e) => {
+                if (e.lengthComputable) {
+                    updateProgress(item.id, Math.round((e.loaded / e.total) * 100), 'جاري الرفع');
                 }
-            } else {
-                updateProgress(item.id, 0, 'فشل'); // Network Error أو 4xx/5xx
-            }
+            };
+            xhr.onload = () => {
+                if (xhr.status >= 200 && xhr.status < 300) {
+                    showResult(item.id, data.files?.[0]?.url || `https://archive.org/download/${encodeURIComponent(identifier)}/${encodeURIComponent(item.file.name)}`);
+                } else {
+                    updateProgress(item.id, 0, 'فشل');
+                    showToast(`فشل رفع ${item.file.name} (HTTP ${xhr.status})`);
+                }
+                resolve();
+            };
+            xhr.onerror = () => {
+                updateProgress(item.id, 0, 'فشل');
+                showToast(`تعذر الاتصال بخادم Internet Archive لرفع ${item.file.name}. قد يكون السبب إعدادات CORS.`);
+                resolve();
+            };
+            xhr.send(item.file);
+        }).catch(error => {
+            updateProgress(item.id, 0, 'فشل');
+            showToast(error.message || `فشل تجهيز رفع ${item.file.name}`);
             resolve();
-        };
-
-        xhr.onerror = () => {
-            updateProgress(item.id, 0, 'فشل'); // Network Error
-            resolve();
-        };
-
-        xhr.send(formData);
+        });
     });
 }
 

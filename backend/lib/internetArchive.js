@@ -1,16 +1,7 @@
-const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
-const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 const axios = require('axios');
+const crypto = require('crypto');
 
-// تهيئة عميل S3 للتعامل مع خوادم Internet Archive
-const s3Client = new S3Client({
-  region: 'us-east-1', // IA لا يستخدم Regions فعلياً، لكن SDK يطلبه
-  endpoint: 'https://s3.us.archive.org',
-  credentials: {
-    accessKeyId: process.env.IA_ACCESS_KEY,
-    secretAccessKey: process.env.IA_SECRET_KEY
-  }
-});
+const IA_S3_ENDPOINT = 'https://s3.us.archive.org';
 
 /**
  * دالة لإنشاء Item جديد في Internet Archive
@@ -43,14 +34,30 @@ async function createIaItem(identifier, title, description, mediatype = 'data') 
  * دالة لتوليد رابط رفع مباشر (Pre-signed URL)
  */
 async function getPresignedUploadUrl(identifier, filename, contentType) {
-  const command = new PutObjectCommand({
-    Bucket: identifier,
-    Key: filename,
-    ContentType: contentType
+  const accessKey = process.env.IA_ACCESS_KEY;
+  const secretKey = process.env.IA_SECRET_KEY;
+  if (!accessKey || !secretKey) {
+    throw new Error('Internet Archive S3 credentials are not configured');
+  }
+
+  // IAS3 uses Signature V2 query authentication; SigV4 URLs are rejected as
+  // AWS access keys because Internet Archive credentials are not AWS IAM keys.
+  const expires = Math.floor(Date.now() / 1000) + 3600;
+  const encodedIdentifier = encodeURIComponent(identifier);
+  const encodedFilename = encodeURIComponent(filename).replace(/%2F/gi, '/');
+  const canonicalResource = `/${encodedIdentifier}/${encodedFilename}`;
+  const stringToSign = `PUT\n\n${contentType}\n${expires}\n${canonicalResource}`;
+  const signature = crypto
+    .createHmac('sha1', secretKey)
+    .update(stringToSign, 'utf8')
+    .digest('base64');
+  const query = new URLSearchParams({
+    AWSAccessKeyId: accessKey,
+    Expires: String(expires),
+    Signature: signature
   });
-  
-  // الرابط يكون صالحاً لمدة ساعة واحدة (3600 ثانية)
-  return await getSignedUrl(s3Client, command, { expiresIn: 3600 });
+
+  return `${IA_S3_ENDPOINT}${canonicalResource}?${query.toString()}`;
 }
 
 /**

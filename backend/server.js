@@ -28,8 +28,10 @@ app.post('/api/create-item', async (req, res) => {
   try {
     const { identifier, title, description, mediatype } = req.body;
     
-    if (!identifier) {
-      return res.status(400).json({ error: 'Identifier is required' });
+    if (!isValidArchiveIdentifier(identifier)) {
+      return res.status(400).json({
+        error: 'معرّف Internet Archive غير صالح: استخدم 5 إلى 101 حرفاً، وابدأ بحرف أو رقم، ويمكن استخدام النقطة والشرطة والشرطة السفلية.',
+      });
     }
 
     const existingItem = await getItemMetadata(identifier).catch(() => null);
@@ -49,12 +51,29 @@ app.post('/api/create-item', async (req, res) => {
       }
     }
     const responseBody = error.response?.data;
+    const responseText = typeof responseBody === 'string' ? responseBody : '';
+    const archiveCode = responseText.match(/<Code>([^<]+)<\/Code>/)?.[1];
+    const archiveMessage = responseText.match(/<Message>([^<]+)<\/Message>/)?.[1];
     console.error('Create Item Error:', JSON.stringify({
       status: error.response?.status,
       message: error.message,
       response: typeof responseBody === 'string' ? responseBody.slice(0, 1000) : responseBody
     }));
-    res.status(500).json({ error: 'Failed to create item on Internet Archive' });
+    if (archiveCode === 'InvalidBucketName') {
+      return res.status(400).json({
+        error: 'رفض Internet Archive هذا المعرّف. استخدم 5 إلى 101 حرفاً، وابدأ بحرف أو رقم، ويمكن استخدام النقطة والشرطة والشرطة السفلية.',
+      });
+    }
+    if (archiveCode === 'AccessDenied' || error.response?.status === 403) {
+      return res.status(403).json({
+        error: 'Internet Archive رفض الكتابة إلى هذا العنصر. جرّب معرّفاً جديداً أو تأكد أن حسابك لديه صلاحية تعديل العنصر.',
+      });
+    }
+    res.status(502).json({
+      error: archiveMessage
+        ? `Internet Archive error: ${archiveMessage}`
+        : 'Failed to create item on Internet Archive',
+    });
   }
 });
 
@@ -138,13 +157,17 @@ app.post('/api/complete-upload', async (req, res) => {
 });
 
 function validateUploadFields(identifier, filename) {
-  if (typeof identifier !== 'string' || !/^[a-z0-9][a-z0-9._-]{2,99}$/i.test(identifier)) {
+  if (!isValidArchiveIdentifier(identifier)) {
     throw new Error('A valid Internet Archive identifier is required');
   }
   if (typeof filename !== 'string' || filename.length < 1 || filename.length > 255 ||
       filename === '.' || filename === '..' || /[\\/\x00-\x1f\x7f]/.test(filename)) {
     throw new Error('A valid filename is required');
   }
+}
+
+function isValidArchiveIdentifier(identifier) {
+  return typeof identifier === 'string' && /^[a-z0-9][a-z0-9._-]{4,100}$/i.test(identifier);
 }
 
 // 4. Get Item Metadata Endpoint

@@ -125,8 +125,8 @@ function renderFiles() {
 
 function validateFiles() {
     const identifier = identifierInput.value.trim();
-    if (!identifier) {
-        showToast('خطأ: يرجى إدخال المعرف (Identifier) أولاً');
+    if (!/^[a-z0-9][a-z0-9._-]{4,100}$/i.test(identifier)) {
+        showToast('معرّف Internet Archive يجب أن يكون من 5 إلى 101 حرفاً، ويبدأ بحرف أو رقم، ويحتوي على حروف أو أرقام أو نقطة أو شرطة فقط.');
         identifierInput.focus();
         return false;
     }
